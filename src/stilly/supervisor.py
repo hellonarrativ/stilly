@@ -2,10 +2,7 @@ import asyncio
 import multiprocessing as mp
 import uvloop
 
-import zmq
-import zmq.asyncio
-from zmq.utils import jsonapi
-
+from stilly.messaging import send_socket, server_socket, get_message
 from .actor import HTTPActor, StateActor
 from .server import app_factory
 
@@ -47,43 +44,41 @@ class Supervisor:
 
     async def close_children(self):
         for actor in self.actors.values():
-            sock = zmq.asyncio.Context.instance().socket(zmq.REQ)
-            sock.connect(actor['address'])
+            sock = send_socket(actor['address'])
             await sock.send_json({
                 'command': 'shutdown',
             })
 
     async def get_messages(self, address):
-        sock = zmq.asyncio.Context.instance().socket(zmq.ROUTER)
         loop = asyncio.get_event_loop()
+        sock = server_socket(address)
         try:
-            sock.bind(address)
             while True:
-                recvd = await sock.recv_multipart()
-                ret_add, _, raw_msg = recvd
-                msg = jsonapi.loads(raw_msg)
+                msg, responder = await get_message(sock)
                 if msg.get('destination') == '/local/master' and msg.get('command') == 'shutdown':
                     await self.close_children()
                     return
-                loop.create_task(self.handle_message(msg, sock, ret_add))
+                loop.create_task(self.handle_message(msg, responder))
         finally:
             loop.create_task(self.close_socket(sock))
             loop.stop()
 
     @staticmethod
     async def close_socket(sock):
-        print('Closing socket')
+        print('Closing supervisor socket')
         sock.close()
 
-    async def handle_message(self, message, sock, ret_add):
-        resp = await self.send_message(message['destination'], message['command'], message['message'])
-        await sock.send_multipart([ret_add, b'', jsonapi.dumps(resp)])
+    async def handle_message(self, message, responder):
+        destination = message['destination']
+        command = message['command']
+        body = message['body']
+        resp = await self.send_message(destination, command, body)
+        await responder.send(resp)
 
     async def send_message(self, destination, command, message=None):
-        sock = zmq.asyncio.Context.instance().socket(zmq.REQ)
-        sock.connect(self.actors.get(destination)['address'])
+        sock = send_socket(self.actors.get(destination)['address'])
         await sock.send_json({
             'command': command,
-            'message': message,
+            'body': message,
         })
         return await sock.recv_json()

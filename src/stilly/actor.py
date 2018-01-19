@@ -1,8 +1,6 @@
 import asyncio
 
-import zmq
-import zmq.asyncio
-from zmq.utils import jsonapi
+from stilly.messaging import server_socket, get_message, send_socket
 
 
 class LoopActor:
@@ -29,16 +27,14 @@ class LoopActor:
             loop.close()
 
     async def get_messages(self, address):
-        sock = zmq.asyncio.Context.instance().socket(zmq.ROUTER)
         loop = asyncio.get_event_loop()
+        sock = server_socket(address)
         try:
-            sock.bind(address)
             while True:
-                ret_add, _, raw_msg = await sock.recv_multipart()
-                msg = jsonapi.loads(raw_msg)
+                msg, responder = await get_message(sock)
                 if msg.get('command') == 'shutdown':
                     return
-                loop.create_task(self.handle_message(msg, sock, ret_add))
+                loop.create_task(self.handle_message(msg, responder))
         finally:
             loop.create_task(self.close_socket(sock))
             loop.stop()
@@ -48,22 +44,20 @@ class LoopActor:
         print('Closing socket')
         sock.close()
 
-    async def handle_message(self, message, sock, ret_add):
+    async def handle_message(self, message, responder):
         resp = await self.process_message(message)
-        await sock.send_multipart([ret_add, b'', jsonapi.dumps(resp)])
+        await responder.send(resp)
 
     async def process_message(self, message):
         pass
 
-    async def send_message(self, destination, command, message=None):
-        sock = zmq.asyncio.Context.instance().socket(zmq.REQ)
-        sock.connect('ipc:///tmp/master')
+    async def send_message(self, destination, command, body=None):
+        sock = send_socket('ipc:///tmp/master')
         await sock.send_json({
             'destination': destination,
             'command': command,
-            'message': message,
+            'body': body,
         })
-
         return await sock.recv_json()
 
 
@@ -87,8 +81,7 @@ class HTTPActor(LoopActor):
         print('serving on', self.srv.sockets[0].getsockname())
 
     async def close(self):
-        sock = zmq.asyncio.Context.instance().socket(zmq.REQ)
-        sock.connect('ipc:///tmp/master')
+        sock = send_socket('ipc:///tmp/master')
         await sock.send_json({
             'destination': '/local/master',
             'command': 'shutdown',
@@ -121,10 +114,10 @@ class StateActor(LoopActor):
 
     async def process_message(self, message):
         command = message.get('command')
-        msg = message.get('message')
+        body = message.get('body')
         if command == 'get':
-            if msg.get('id') is not None:
-                id = msg['id']
+            if body.get('id') is not None:
+                id = body['id']
                 if id >= len(self.state['TODOS']):
                     return {'error': 'Todo not found'}
                 return self.state['TODOS'][id]
