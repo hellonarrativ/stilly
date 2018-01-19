@@ -5,7 +5,6 @@ import uvloop
 from stilly.utils.messaging import send_socket, server_socket, get_message
 from stilly.actors.dict_actor import StateActor
 from stilly.actors.aiohttp_actor import HTTPActor
-from stilly_app.server import app_factory
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
@@ -15,24 +14,30 @@ def mp_actor(actor_class, address, **kwargs):
     a.run()
 
 
+def get_actor_record(actor_config):
+    classes = {
+        'aiohttp': HTTPActor,
+        'dict': StateActor,
+    }
+    address = 'ipc:///tmp/{}'.format(actor_config[0])
+    return {
+        'proc': mp.Process(
+            target=mp_actor,
+            args=(classes[actor_config[1]], address),
+            kwargs=actor_config[2]
+        ),
+        'address': address,
+    }
+
+
 class Supervisor:
 
-    def __init__(self):
-        self.actors = {}
+    def __init__(self, actor_configs):
+        self.actors = {'/local/{}'.format(x[0]): get_actor_record(x) for x in actor_configs}
 
     def run(self):
-        self.actors['/local/http'] = {
-            'proc': mp.Process(target=mp_actor, args=(HTTPActor, 'ipc:///tmp/actor1'),
-                               kwargs={'app_factory': app_factory}),
-            'address': 'ipc:///tmp/actor1'
-        }
-        self.actors['/local/state'] = {
-            'proc': mp.Process(target=mp_actor, args=(StateActor, 'ipc:///tmp/actor2')),
-            'address': 'ipc:///tmp/actor2'
-        }
-
-        self.actors['/local/http']['proc'].start()
-        self.actors['/local/state']['proc'].start()
+        for a in self.actors.values():
+            a['proc'].start()
 
         loop = asyncio.get_event_loop()
         loop.create_task(self.get_messages('ipc:///tmp/master'))
