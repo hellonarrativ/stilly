@@ -2,9 +2,10 @@ import asyncio
 import multiprocessing as mp
 import uvloop
 
-from stilly.messaging import send_socket, server_socket, get_message
-from .actor import HTTPActor, StateActor
-from .server import app_factory
+from stilly.utils.messaging import send_socket, server_socket, get_message
+from stilly.actors.dict_actor import StateActor
+from stilly.actors.aiohttp_actor import HTTPActor
+from stilly_app.server import app_factory
 
 asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
 
