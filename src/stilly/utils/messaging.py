@@ -28,3 +28,6 @@ class Responder:
     async def send(self, response):
         frames = [self.ident, b'', jsonapi.dumps(response)]
         await self.sock.send_multipart(frames)
+
+    def close(self):
+        self.sock.close()

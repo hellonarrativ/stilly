@@ -2,6 +2,7 @@ import asyncio
 import multiprocessing as mp
 import uvloop
 
+from stilly.logging import get_logger
 from stilly.utils.messaging import send_socket, server_socket, get_message
 from stilly.actors.dict_actor import StateActor
 from stilly.actors.aiohttp_actor import HTTPActor
@@ -33,6 +34,7 @@ def get_actor_record(actor_config):
 class Supervisor:
 
     def __init__(self, actor_configs):
+        self.logger = get_logger()
         self.actors = {'/local/{}'.format(x[0]): get_actor_record(x) for x in actor_configs}
 
     def run(self):
@@ -69,9 +71,8 @@ class Supervisor:
             loop.create_task(self.close_socket(sock))
             loop.stop()
 
-    @staticmethod
-    async def close_socket(sock):
-        print('Closing supervisor socket')
+    async def close_socket(self, sock):
+        self.logger.info('Closing supervisor socket')
         sock.close()
 
     async def handle_message(self, message, responder):

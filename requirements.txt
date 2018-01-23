@@ -1,4 +1,5 @@
 aiohttp
+multiprocessing-logging
 pytest
 uvloop
 pyzmq==17.0.0b3

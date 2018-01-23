@@ -1,5 +1,6 @@
 import asyncio
 
+from stilly.logging import get_logger
 from stilly.utils.messaging import server_socket, get_message, send_socket
 
 
@@ -7,6 +8,7 @@ class LoopActor:
 
     def __init__(self, address):
         self.address = address
+        self.logger = get_logger()
 
     def setup_tasks(self):
         pass
@@ -32,19 +34,18 @@ class LoopActor:
         try:
             while True:
                 msg, responder = await get_message(sock)
-                if msg.get('command') == 'shutdown':
-                    return
                 loop.create_task(self.handle_message(msg, responder))
         finally:
             loop.create_task(self.close_socket(sock))
             loop.stop()
 
-    @staticmethod
-    async def close_socket(sock):
-        print('Closing socket')
+    async def close_socket(self, sock):
+        self.logger.info('Closing socket')
         sock.close()
 
     async def handle_message(self, message, responder):
+        if message.get('command') == 'shutdown':
+            return responder.close()
         resp = await self.process_message(message)
         await responder.send(resp)
 

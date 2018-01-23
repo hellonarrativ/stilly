@@ -21,7 +21,7 @@ class HTTPActor(LoopActor):
         self.handler = self.app.make_handler()
         f = loop.create_server(self.handler, '0.0.0.0', 8080)
         self.srv = loop.run_until_complete(f)
-        print('serving on', self.srv.sockets[0].getsockname())
+        self.logger.info('serving on {}'.format(self.srv.sockets[0].getsockname()))
 
     async def close(self):
         sock = send_socket('ipc:///tmp/master')
