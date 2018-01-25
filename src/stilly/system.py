@@ -3,15 +3,20 @@ from time import time
 from typing import Dict
 from typing import Type
 
-from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage, ActorProxy, HeartbeatMessage, Q
+from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage, \
+    ActorProxy, HeartbeatMessage
+
+
+system_queue: Queue = None
 
 
 def send_message(msg: Message):
-    System.q.put(msg)
+    system_queue.put(msg)
 
 
 class ActorRecord:
-    def __init__(self, actor_class: Type[BaseActor], address: str, *args, **kwargs) -> None:
+    def __init__(self, actor_class: Type[BaseActor], address: str,
+                 *args, **kwargs) -> None:
         self.actor_class = actor_class
         self.address = address
         self.args = args
@@ -26,21 +31,24 @@ class LaunchActorMessage(Message):
 
 
 class System(BaseActor):
-    q: Q = Queue()
 
-    def __init__(self, proc, queue) -> None:
-        super().__init__(proc, queue)
+    def __init__(self, proc, input_queue, supervisor_queue) -> None:
+        super().__init__(proc, input_queue, supervisor_queue)
         self.actors: Dict[str, ActorRecord] = {}
 
     def create_actor(self, msg: LaunchActorMessage) -> None:
         record: ActorRecord = msg.actor_record
-        ap = record.actor_class.start_actor(record.address)
+        ap = record.actor_class.start_actor(record.address,
+                                            self.input_queue)
         record.instance = ap
         self.actors[msg.actor_record.address] = record
 
     @classmethod
     def start_system(cls):
-        return cls.start_actor('/local/system', cls.q)
+        global system_queue
+        ap = cls.start_actor('/local/system')
+        system_queue = ap.queue
+        return ap
 
     def handle_msg(self, msg: Message):
         self.log(msg)

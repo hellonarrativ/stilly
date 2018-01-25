@@ -1,4 +1,4 @@
-from stilly.system import send_message, System, LaunchActorMessage, ActorRecord
+from stilly.system import send_message, System, LaunchActorMessage
 from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage, ThreadActor
 
 supe = System.start_system()

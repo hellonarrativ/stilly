@@ -1,14 +1,13 @@
 import multiprocessing as mp
 import threading as t
 from builtins import classmethod
-from time import time, sleep
-from queue import Empty, Queue
+from time import time
+from queue import Empty
 from typing import Union
 
 from stilly.logging import get_logger
 
 Proc = Union[mp.Process, t.Thread]
-Q = Union[mp.Queue, Queue]
 
 
 class ActorProxy:
@@ -43,10 +42,12 @@ class HeartbeatMessage(Message):
 
 
 class BaseActor:
-    def __init__(self, address: str, input_queue: Q) -> None:
+    def __init__(self, address: str, input_queue: mp.Queue,
+                 supervisor_queue: mp.Queue) -> None:
         self.address = address
         self.logger = get_logger()
         self.input_queue = input_queue
+        self.supervisor_queue = supervisor_queue
         self.running = False
 
     def log(self, message, level='debug'):
@@ -54,11 +55,11 @@ class BaseActor:
         getattr(self.logger, level)(log_msg)
 
     @classmethod
-    def start_actor(cls, address: str, queue: mp.Queue=None) -> ActorProxy:
-        input_queue = mp.Queue() if queue is None else queue
+    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None) -> ActorProxy:
+        input_queue = mp.Queue()
 
         def start():
-            a = cls(address, input_queue)
+            a = cls(address, input_queue, supervisor_queue)
             a.run()
 
         proc = mp.Process(target=start)
@@ -105,11 +106,11 @@ class ThreadActor(BaseActor):
     The rest of the API should be the same
     """
     @classmethod
-    def start_actor(cls, address: str, queue: Queue=None) -> ActorProxy:
-        input_queue = Queue() if queue is None else queue
+    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None) -> ActorProxy:
+        input_queue = mp.Queue()
 
         def start():
-            a = cls(address, input_queue)
+            a = cls(address, input_queue, supervisor_queue)
             a.run()
 
         proc = t.Thread(target=start)
