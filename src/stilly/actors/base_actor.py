@@ -10,6 +10,16 @@ class ActorProxy:
         self.queue = queue
 
 
+class Message:
+    def __init__(self, destination=''):
+        self.destination = destination
+
+
+class ShutdownMessage(Message):
+    def __init__(self, destination):
+        super().__init__(destination=destination)
+
+
 class BaseActor:
     def __init__(self, address: str, input_queue: Queue):
         self.address = address
@@ -43,11 +53,11 @@ class BaseActor:
     def shutdown(self):
         self.running = False
 
-    def _handle_msg(self, msg: dict):
-        if msg.get('command') == 'shutdown':
+    def _handle_msg(self, msg: Message):
+        if isinstance(msg, ShutdownMessage):
             self.shutdown()
         else:
             self.handle_msg(msg)
 
-    def handle_msg(self, msg: dict):
+    def handle_msg(self, msg: Message):
         print(msg)

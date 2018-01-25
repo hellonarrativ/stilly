@@ -1,17 +1,14 @@
-from stilly.system import System
-from stilly.actors.base_actor import BaseActor
-
+from stilly.system import System, LaunchActorMessage
+from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage
 
 supe = System.start_system()
 
-System.q.put({'a': 7})
-System.q.put({'a': 7})
+System.q.put(Message())
+System.q.put(Message())
+System.q.put(Message())
+System.q.put(LaunchActorMessage(BaseActor, '/local/a'))
+System.q.put(LaunchActorMessage(BaseActor, '/local/b'))
 
-System.q.put({'a': 7})
-System.q.put({'destination': '/local/system', 'command': 'launch_actor', 'actor_class': BaseActor, 'address': '/local/a'})
-System.q.put({'destination': '/local/system', 'command': 'launch_actor', 'actor_class': BaseActor, 'address': '/local/b'})
-System.q.put({'destination': '/local/a', 'command': 'HI'})
-System.q.put({'destination': '/local/b', 'command': 'HI'})
-System.q.put({'destination': '/local/system', 'command': 'shutdown'})
-
-
+System.q.put(Message('/local/a'))
+System.q.put(Message('/local/b'))
+System.q.put(ShutdownMessage('/local/system'))
