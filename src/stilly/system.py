@@ -1,5 +1,4 @@
 from multiprocessing import Queue
-from typing import Type
 
 from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage
 
@@ -13,6 +12,7 @@ class LaunchActorMessage(Message):
         super().__init__(destination='/local/system')
         self.actor_class = actor_class
         self.address = address
+
 
 class System(BaseActor):
     q = Queue()
