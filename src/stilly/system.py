@@ -3,7 +3,7 @@ from multiprocessing import Queue
 from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage
 
 
-def send_message(msg: dict):
+def send_message(msg: Message):
     System.q.put(msg)
 
 
@@ -30,7 +30,7 @@ class System(BaseActor):
         return cls.start_actor('/local/system', cls.q)
 
     def handle_msg(self, msg: Message):
-        print(msg)
+        self.log(msg)
         if msg.destination == self.address:
             if isinstance(msg, LaunchActorMessage):
                 self.create_actor(msg)

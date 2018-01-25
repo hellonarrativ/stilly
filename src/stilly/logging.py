@@ -13,7 +13,7 @@ def get_logger(handlers=None):
     logger = logging.getLogger('stilly')
     logger.setLevel(logging.DEBUG)
 
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
     st = logging.StreamHandler(sys.stdout)
     st.setLevel(logging.DEBUG)
     st.setFormatter(formatter)
