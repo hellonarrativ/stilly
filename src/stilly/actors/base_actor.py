@@ -5,6 +5,7 @@ from builtins import classmethod
 from time import time
 from queue import Empty
 from typing import Union
+from uuid import uuid4
 
 from stilly.logging import get_logger
 
@@ -19,9 +20,9 @@ class ActorProxy:
 
 
 class Message:
-    def __init__(self, destination: str='', body: str='') -> None:
+    def __init__(self, destination: str='', body: dict=None) -> None:
         self.destination = destination
-        self.body = body
+        self.body = body or {}
 
     def __repr__(self) -> str:
         return '<{} destination={} body={}>'.format(
@@ -42,6 +43,21 @@ class HeartbeatMessage(Message):
         self.heartbeat_address = heartbeat_address
 
 
+class RequestMessage(Message):
+    def __init__(self, destination: str, return_address: str, return_id: str,
+                 body: dict):
+        super().__init__(destination=destination, body=body)
+        self.return_address = return_address
+        self.return_id = return_id
+
+
+class ResponseMessage(Message):
+    def __init__(self, destination: str, return_id: str,
+                 body: dict):
+        super().__init__(destination=destination, body=body)
+        self.return_id = return_id
+
+
 class BaseActor:
     def __init__(self, address: str, input_queue: mp.Queue,
                  supervisor_queue: mp.Queue, *args, **kwargs) -> None:
@@ -50,6 +66,7 @@ class BaseActor:
         self.input_queue = input_queue
         self.supervisor_queue = supervisor_queue
         self.running = False
+        self.pending_responses = {}
 
     def log(self, message, level='debug'):
         log_msg = 'Actor: {} -- {}'.format(self.address, message)
@@ -103,8 +120,14 @@ class BaseActor:
         asyncio.get_event_loop().stop()
 
     async def _handle_msg(self, msg: Message):
+        self.log(msg)
         if isinstance(msg, ShutdownMessage):
             self.shutdown()
+        elif isinstance(msg, ResponseMessage):
+            ret_id = msg.return_id
+            ev = self.pending_responses[ret_id][0]
+            self.pending_responses[ret_id] = (None, msg)
+            ev.set()
         else:
             self.handle_msg(msg)
 
@@ -117,6 +140,23 @@ class BaseActor:
 
     def send_msg(self, msg: Message):
         self.supervisor_queue.put(msg)
+
+    async def get_response(self, destination: str, body: dict):
+        """
+        create a unique return id and associate an asyncio.Event
+        flag with it. Register the Event with the return id on the
+        main event loop. Wait until the flag becomes true and
+        fetch the result
+        """
+        event = asyncio.Event()
+        id = uuid4()
+        self.pending_responses[id] = (event, None)
+        self.send_msg(RequestMessage(destination,
+                                     return_address=self.address,
+                                     return_id=id,
+                                     body=body))
+        await event.wait()
+        return self.pending_responses.pop(id)[1].body
 
     def work(self):
         """
@@ -133,11 +173,12 @@ class ThreadActor(BaseActor):
     The rest of the API should be the same
     """
     @classmethod
-    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None) -> ActorProxy:
+    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None,
+                    *args, **kwargs) -> ActorProxy:
         input_queue = mp.Queue()
 
         def start():
-            a = cls(address, input_queue, supervisor_queue)
+            a = cls(address, input_queue, supervisor_queue, *args, **kwargs)
             a.run()
 
         proc = t.Thread(target=start)

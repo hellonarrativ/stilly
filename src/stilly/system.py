@@ -52,11 +52,13 @@ class System(BaseActor):
         system_queue = ap.queue
         return ap
 
-    def handle_msg(self, msg: Message):
+    async def _handle_msg(self, msg: Message):
         self.log(msg)
         if msg.destination == self.address:
             if isinstance(msg, LaunchActorMessage):
                 self.create_actor(msg)
+            elif isinstance(msg, ShutdownMessage):
+                self.shutdown()
             elif isinstance(msg, HeartbeatMessage):
                 self.actors[msg.heartbeat_address].instance.heartbeat = time()
         elif msg.destination:
