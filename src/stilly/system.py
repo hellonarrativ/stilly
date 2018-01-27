@@ -1,3 +1,4 @@
+import asyncio
 from multiprocessing import Queue, Process
 from time import time
 from typing import Dict
@@ -70,7 +71,7 @@ class System(BaseActor):
             record.instance.proc.join(1)
             if isinstance(record.instance.proc, Process) and record.instance.proc.is_alive():
                 record.instance.proc.terminate()
-        self.running = False
+        asyncio.get_event_loop().stop()
 
     def work(self):
         for address, record in list(self.actors.items()):

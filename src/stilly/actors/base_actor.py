@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing as mp
 import threading as t
 from builtins import classmethod
@@ -67,16 +68,27 @@ class BaseActor:
         return ActorProxy(proc=proc, queue=input_queue)
 
     def run(self):
-        self.running = True
-        while self.running:
-            self.work()
-            try:
-                self._handle_msg(self.input_queue.get(timeout=.1))
-            except Empty:
-                pass
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+
+        async def get():
+            while not loop._stopping:
+                try:
+                    self._handle_msg(self.input_queue.get(timeout=1))
+                except Empty:
+                    pass
+
+        loop.create_task(get())
+        try:
+            loop.run_forever()
+        finally:
+            remaining_tasks = asyncio.Task.all_tasks()
+            loop.run_until_complete(asyncio.wait_for(asyncio.gather(*remaining_tasks), 5))
+            loop.close()
 
     def shutdown(self):
-        self.running = False
+        self.log('Shutting down')
+        asyncio.get_event_loop().stop()
 
     def _handle_msg(self, msg: Message):
         if isinstance(msg, ShutdownMessage):
