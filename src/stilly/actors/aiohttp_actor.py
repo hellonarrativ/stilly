@@ -1,6 +1,7 @@
 import asyncio
 
 from stilly.actors.loop_actor import LoopActor
+from stilly.system import send_message
 from stilly.utils.messaging import send_socket
 
 

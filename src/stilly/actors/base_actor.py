@@ -70,13 +70,17 @@ class BaseActor:
     def run(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
+        self.setup()
 
         async def get():
             while not loop._stopping:
                 try:
-                    self._handle_msg(self.input_queue.get(timeout=1))
+                    # keep this timeout short as it blocks the event loop
+                    # TODO need a non-blocking implementation of multiprocessing.Queue
+                    loop.create_task(self._handle_msg(self.input_queue.get(timeout=.01)))
                 except Empty:
-                    pass
+                    # Yield to the event loop to allow other coroutines to run
+                    await asyncio.sleep(0)
 
         loop.create_task(get())
         try:
@@ -86,11 +90,14 @@ class BaseActor:
             loop.run_until_complete(asyncio.wait_for(asyncio.gather(*remaining_tasks), 5))
             loop.close()
 
+    def setup(self):
+        pass
+
     def shutdown(self):
         self.log('Shutting down')
         asyncio.get_event_loop().stop()
 
-    def _handle_msg(self, msg: Message):
+    async def _handle_msg(self, msg: Message):
         if isinstance(msg, ShutdownMessage):
             self.shutdown()
         else:
