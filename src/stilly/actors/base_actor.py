@@ -44,7 +44,7 @@ class HeartbeatMessage(Message):
 
 class BaseActor:
     def __init__(self, address: str, input_queue: mp.Queue,
-                 supervisor_queue: mp.Queue) -> None:
+                 supervisor_queue: mp.Queue, *args, **kwargs) -> None:
         self.address = address
         self.logger = get_logger()
         self.input_queue = input_queue
@@ -56,11 +56,12 @@ class BaseActor:
         getattr(self.logger, level)(log_msg)
 
     @classmethod
-    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None) -> ActorProxy:
+    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None,
+                    *args, **kwargs) -> ActorProxy:
         input_queue = mp.Queue()
 
         def start():
-            a = cls(address, input_queue, supervisor_queue)
+            a = cls(address, input_queue, supervisor_queue, *args, **kwargs)
             a.run()
 
         proc = mp.Process(target=start)
@@ -86,11 +87,15 @@ class BaseActor:
         try:
             loop.run_forever()
         finally:
+            self.cleanup()
             remaining_tasks = asyncio.Task.all_tasks()
             loop.run_until_complete(asyncio.wait_for(asyncio.gather(*remaining_tasks), 5))
             loop.close()
 
     def setup(self):
+        pass
+
+    def cleanup(self):
         pass
 
     def shutdown(self):
@@ -109,6 +114,9 @@ class BaseActor:
         it should handle any message type that it expects
         """
         self.log(msg)
+
+    def send_msg(self, msg: Message):
+        self.supervisor_queue.put(msg)
 
     def work(self):
         """

@@ -26,9 +26,10 @@ class ActorRecord:
 
 
 class LaunchActorMessage(Message):
-    def __init__(self, actor_class, address):
+    def __init__(self, actor_class, address, *args, **kwargs):
         super().__init__(destination='/local/system')
-        self.actor_record = ActorRecord(actor_class, address)
+        self.actor_record = ActorRecord(actor_class, address, *args, **kwargs)
+
 
 
 class System(BaseActor):
@@ -40,7 +41,7 @@ class System(BaseActor):
     def create_actor(self, msg: LaunchActorMessage) -> None:
         record: ActorRecord = msg.actor_record
         ap = record.actor_class.start_actor(record.address,
-                                            self.input_queue)
+                                            self.input_queue, *record.args, **record.kwargs)
         record.instance = ap
         self.actors[msg.actor_record.address] = record
 
