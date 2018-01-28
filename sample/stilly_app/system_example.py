@@ -7,7 +7,7 @@ from stilly_app.server import app_factory
 
 supe = System.start_system()
 
-initial_state =  {
+initial_state = {
     b'todos::0': {
         'name': 'Start this tutorial',
         'finished': True

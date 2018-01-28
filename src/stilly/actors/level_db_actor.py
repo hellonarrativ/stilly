@@ -20,7 +20,6 @@ class StateActor(ThreadActor):
     def handle_msg(self, msg: RequestMessage):
         resp = {}
         if msg.body.get('action') == 'get':
-
             if msg.body.get('id'):
                 val = self.db.get(msg.body['id'])
                 if val:
@@ -28,10 +27,18 @@ class StateActor(ThreadActor):
                 else:
                     resp = {'error': 'Todo not found'}
             elif msg.body.get('prefix'):
-                items = self.db.iterator(prefix=msg.body['prefix'])
-                resp = [jsonapi.loads(value) for key, value in items]
+                with self.db.iterator(prefix=msg.body['prefix']) as items:
+                    resp = [jsonapi.loads(value) for key, value in items]
+        if msg.body.get('action') == 'add':
+            with self.db.iterator(prefix=msg.body['prefix']) as items:
+                items.seek_to_stop()
+                last_key, _ = items.prev()
+            last_key_id = int(last_key.split(b'::')[1])
+            key = msg.body['prefix'] + bytes(str(last_key_id + 1), 'utf-8')
+            self.db.put(key, jsonapi.dumps(msg.body['value']))
+            resp = {last_key_id: msg.body['value']}
         resp_msg = ResponseMessage(destination=msg.return_address,
-                                      return_id=msg.return_id,
-                                      body=resp)
+                                   return_id=msg.return_id,
+                                   body=resp)
         self.log(resp_msg)
         self.send_msg(resp_msg)
