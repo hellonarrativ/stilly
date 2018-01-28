@@ -31,7 +31,6 @@ class LaunchActorMessage(Message):
         self.actor_record = ActorRecord(actor_class, address, *args, **kwargs)
 
 
-
 class System(MultiprocActor):
 
     def __init__(self, proc, input_queue, supervisor_queue) -> None:

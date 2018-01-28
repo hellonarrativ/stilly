@@ -2,7 +2,7 @@ from aiohttp import web
 
 
 async def get_all_todos(request):
-    todos = await request.app['actor'].get_response('/local/state', {'action': 'get'})
+    todos = await request.app['actor'].get_response('/local/state', {'action': 'get', 'prefix': b'todos::'})
     return web.json_response([
         {'id': idx, **todo} for idx, todo in enumerate(todos)
     ])
@@ -10,8 +10,8 @@ async def get_all_todos(request):
 
 async def get_one_todo(request):
     id = int(request.match_info['id'])
-
-    todo = await request.app['actor'].get_response('/local/state', {'action': 'get', 'id': id})
+    key = b'todos::' + bytes(str(id), 'utf-8')
+    todo = await request.app['actor'].get_response('/local/state', {'action': 'get', 'id': key})
 
     if todo.get('error'):
         return web.json_response(todo, status=404)
