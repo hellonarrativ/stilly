@@ -7,6 +7,7 @@ from queue import Empty
 from typing import Union
 from uuid import uuid4
 
+from stilly.communications.messages import Message, ShutdownMessage, RequestMessage, ResponseMessage
 from stilly.logging import get_logger
 
 Proc = Union[mp.Process, t.Thread]
@@ -17,45 +18,6 @@ class ActorProxy:
         self.proc = proc
         self.queue = queue
         self.heartbeat = time()
-
-
-class Message:
-    def __init__(self, destination: str='', body: dict=None) -> None:
-        self.destination = destination
-        self.body = body or {}
-
-    def __repr__(self) -> str:
-        return '<{} destination={} body={}>'.format(
-            self.__class__.__name__,
-            self.destination,
-            self.body,
-        )
-
-
-class ShutdownMessage(Message):
-    def __init__(self, destination: str) -> None:
-        super().__init__(destination=destination)
-
-
-class HeartbeatMessage(Message):
-    def __init__(self, destination: str, heartbeat_address: str='') -> None:
-        super().__init__(destination=destination)
-        self.heartbeat_address = heartbeat_address
-
-
-class RequestMessage(Message):
-    def __init__(self, destination: str, return_address: str, return_id: str,
-                 body: dict):
-        super().__init__(destination=destination, body=body)
-        self.return_address = return_address
-        self.return_id = return_id
-
-
-class ResponseMessage(Message):
-    def __init__(self, destination: str, return_id: str,
-                 body: dict):
-        super().__init__(destination=destination, body=body)
-        self.return_id = return_id
 
 
 class BaseActor:
@@ -75,15 +37,7 @@ class BaseActor:
     @classmethod
     def start_actor(cls, address: str, supervisor_queue: mp.Queue=None,
                     *args, **kwargs) -> ActorProxy:
-        input_queue = mp.Queue()
-
-        def start():
-            a = cls(address, input_queue, supervisor_queue, *args, **kwargs)
-            a.run()
-
-        proc = mp.Process(target=start)
-        proc.start()
-        return ActorProxy(proc=proc, queue=input_queue)
+        raise NotImplementedError()
 
     def run(self):
         loop = asyncio.new_event_loop()
@@ -167,20 +121,3 @@ class BaseActor:
         pass
 
 
-class ThreadActor(BaseActor):
-    """
-    Actor that uses a Thread instead of a Process
-    The rest of the API should be the same
-    """
-    @classmethod
-    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None,
-                    *args, **kwargs) -> ActorProxy:
-        input_queue = mp.Queue()
-
-        def start():
-            a = cls(address, input_queue, supervisor_queue, *args, **kwargs)
-            a.run()
-
-        proc = t.Thread(target=start)
-        proc.start()
-        return ActorProxy(proc=proc, queue=input_queue)

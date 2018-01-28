@@ -1,9 +1,10 @@
 import multiprocessing as mp
 
-from stilly.actors.base_actor import BaseActor, Message, RequestMessage, ResponseMessage
+from stilly.actors.thread_actor import ThreadActor
+from stilly.communications.messages import RequestMessage, ResponseMessage
 
 
-class StateActor(BaseActor):
+class StateActor(ThreadActor):
     def __init__(self, address, input_queue: mp.Queue,
                  supervisor_queue: mp.Queue):
         super().__init__(address, input_queue, supervisor_queue)

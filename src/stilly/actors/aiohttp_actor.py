@@ -1,10 +1,11 @@
 import asyncio
 import multiprocessing as mp
 
-from stilly.actors.base_actor import ShutdownMessage, BaseActor
+from stilly.actors.multiproc_actor import MultiprocActor
+from stilly.communications.messages import ShutdownMessage
 
 
-class HTTPActor(BaseActor):
+class HTTPActor(MultiprocActor):
 
     def __init__(self, address: str, input_queue: mp.Queue,
                  supervisor_queue: mp.Queue, app_factory):

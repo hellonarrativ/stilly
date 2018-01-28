@@ -4,9 +4,9 @@ from time import time
 from typing import Dict
 from typing import Type
 
-from stilly.actors.base_actor import BaseActor, Message, ShutdownMessage, \
-    ActorProxy, HeartbeatMessage
-
+from stilly.actors.base_actor import ActorProxy, BaseActor
+from stilly.actors.multiproc_actor import MultiprocActor
+from stilly.communications.messages import Message, ShutdownMessage, HeartbeatMessage
 
 system_queue: Queue = None
 
@@ -32,7 +32,7 @@ class LaunchActorMessage(Message):
 
 
 
-class System(BaseActor):
+class System(MultiprocActor):
 
     def __init__(self, proc, input_queue, supervisor_queue) -> None:
         super().__init__(proc, input_queue, supervisor_queue)
