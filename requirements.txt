@@ -3,4 +3,5 @@ multiprocessing-logging
 mypy
 pytest
 uvloop
+plyvel
 pyzmq==17.0.0b3
