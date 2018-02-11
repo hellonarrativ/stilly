@@ -23,17 +23,17 @@ initial_state = {
 
 
 # send_message(Message(body={'msg': 'hi!'}))
-# send_message(LaunchActorMessage(MultiprocActor, '/local/a'))
+send_message(LaunchActorMessage(MultiprocActor, '/local/a'))
 # send_message(LaunchActorMessage(StateActor, '/local/state', initial_state=initial_state))
 # send_message(LaunchActorMessage(HTTPActor, '/local/http', app_factory=app_factory))
-#
-# send_message(Message('/local/a', body={'msg': 'yo'}))
-# send_message(Message('/local/a', body={'msg': 'adrian'}))
-# send_message(Message('/local/a', body={'msg': 'yo'}))
-#send_message(ShutdownMessage('/local/system'))
-servers = ['/local/rafta', '/local/raftb', '/local/raftc', '/local/raftd', '/local/rafte']
-for server in servers:
-    send_message(LaunchActorMessage(RaftActor, server, servers=servers))
+
+send_message(Message('/local/a', body={'msg': 'yo'}))
+send_message(Message('/local/a', body={'msg': 'adrian'}))
+send_message(Message('/local/a', body={'msg': 'yo'}))
+send_message(ShutdownMessage('/local/system'))
+# servers = ['/local/rafta', '/local/raftb', '/local/raftc', '/local/raftd', '/local/rafte']
+# for server in servers:
+#     send_message(LaunchActorMessage(RaftActor, server, servers=servers))
 
 # for server in servers:
 #     sleep(5)

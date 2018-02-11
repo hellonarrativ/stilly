@@ -1,7 +1,7 @@
 import asyncio
 import multiprocessing as mp
 import threading as t
-from builtins import classmethod
+from builtins import classmethod, OSError
 from time import time
 from queue import Empty
 from typing import Union
@@ -45,7 +45,7 @@ class BaseActor:
         self.setup()
 
         async def get():
-            while not loop._stopping:
+            while True:
                 try:
                     # keep this timeout short as it blocks the event loop
                     # TODO need a non-blocking implementation of multiprocessing.Queue
@@ -53,6 +53,9 @@ class BaseActor:
                 except Empty:
                     # Yield to the event loop to allow other coroutines to run
                     await asyncio.sleep(0)
+                except OSError:
+                    # Queue was closed
+                    break
 
         loop.create_task(get())
         try:
@@ -71,6 +74,7 @@ class BaseActor:
 
     def shutdown(self):
         self.log('Shutting down')
+        self.input_queue.close()
         asyncio.get_event_loop().stop()
 
     async def _handle_msg(self, msg: Message):

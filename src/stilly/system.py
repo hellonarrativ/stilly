@@ -73,6 +73,7 @@ class System(MultiprocActor):
             record.instance.proc.join(1)
             if isinstance(record.instance.proc, Process) and record.instance.proc.is_alive():
                 record.instance.proc.terminate()
+        self.input_queue.close()
         asyncio.get_event_loop().stop()
 
     def work(self):
