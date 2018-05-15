@@ -1,3 +1,6 @@
+from uuid import UUID
+
+
 class Message:
     def __init__(self, destination: str='', body: dict=None) -> None:
         self.destination = destination
@@ -23,7 +26,7 @@ class HeartbeatMessage(Message):
 
 
 class RequestMessage(Message):
-    def __init__(self, destination: str, return_address: str, return_id: str,
+    def __init__(self, destination: str, return_address: str, return_id: UUID,
                  body: dict):
         super().__init__(destination=destination, body=body)
         self.return_address = return_address

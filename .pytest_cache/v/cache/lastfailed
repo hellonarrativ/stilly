@@ -1,0 +1,4 @@
+{
+  "tests/test_stilly.py": true,
+  "tests/test_stilly.py::test_stilly_system": true
+}

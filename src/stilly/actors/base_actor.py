@@ -1,32 +1,29 @@
 import asyncio
 import multiprocessing as mp
 import threading as t
-from builtins import classmethod, OSError
+from builtins import classmethod
 from time import time
-from queue import Empty
 from typing import Union
 from uuid import uuid4
 
 from stilly.communications.messages import Message, ShutdownMessage, RequestMessage, ResponseMessage
 from stilly.logging import get_logger
+from stilly.utils.messaging import server_socket, send_message
 
 Proc = Union[mp.Process, t.Thread]
 
 
 class ActorProxy:
-    def __init__(self, proc: Union[mp.Process, t.Thread], queue) -> None:
+    def __init__(self, proc: Union[mp.Process, t.Thread]) -> None:
         self.proc = proc
-        self.queue = queue
         self.heartbeat = time()
 
 
 class BaseActor:
-    def __init__(self, address: str, input_queue: mp.Queue,
-                 supervisor_queue: mp.Queue, *args, **kwargs) -> None:
+    def __init__(self, address: str, *args, **kwargs) -> None:
         self.address = address
         self.logger = get_logger()
-        self.input_queue = input_queue
-        self.supervisor_queue = supervisor_queue
+        self.input_sock = server_socket(self.address)
         self.running = False
         self.pending_responses = {}
 
@@ -35,8 +32,7 @@ class BaseActor:
         getattr(self.logger, level)(log_msg)
 
     @classmethod
-    def start_actor(cls, address: str, supervisor_queue: mp.Queue=None,
-                    *args, **kwargs) -> ActorProxy:
+    def start_actor(cls, address: str, *args, **kwargs) -> ActorProxy:
         raise NotImplementedError()
 
     def run(self):
@@ -46,16 +42,7 @@ class BaseActor:
 
         async def get():
             while True:
-                try:
-                    # keep this timeout short as it blocks the event loop
-                    # TODO need a non-blocking implementation of multiprocessing.Queue
-                    loop.create_task(self._handle_msg(self.input_queue.get(timeout=.01)))
-                except Empty:
-                    # Yield to the event loop to allow other coroutines to run
-                    await asyncio.sleep(0)
-                except OSError:
-                    # Queue was closed
-                    break
+                loop.create_task(self._handle_msg(await self.input_sock.recv_pyobj()))
 
         loop.create_task(get())
         try:
@@ -74,10 +61,10 @@ class BaseActor:
 
     def shutdown(self):
         self.log('Shutting down')
-        self.input_queue.close()
         asyncio.get_event_loop().stop()
 
     async def _handle_msg(self, msg: Message):
+        print('hello??')
         self.log(msg)
         if isinstance(msg, ShutdownMessage):
             self.shutdown()
@@ -96,9 +83,6 @@ class BaseActor:
         """
         self.log(msg)
 
-    def send_msg(self, msg: Message):
-        self.supervisor_queue.put(msg)
-
     async def get_response(self, destination: str, body: dict):
         """
         create a unique return id and associate an asyncio.Event
@@ -109,10 +93,10 @@ class BaseActor:
         event = asyncio.Event()
         id = uuid4()
         self.pending_responses[id] = (event, None)
-        self.send_msg(RequestMessage(destination,
-                                     return_address=self.address,
-                                     return_id=id,
-                                     body=body))
+        send_message(RequestMessage(destination,
+                                    return_address=self.address,
+                                    return_id=id,
+                                    body=body))
         await event.wait()
         return self.pending_responses.pop(id)[1].body
 
